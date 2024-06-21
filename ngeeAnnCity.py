@@ -54,12 +54,12 @@ def draw_centered_text(text, font, color, surface, rect):
     surface.blit(text_obj, text_rect)
 
 # Calculate points for the grid
-def calculate_points(grid):
+def calculate_points(grid, restricted_residential):
     points = 0
     for row in range(GRID_SIZE):
         for col in range(GRID_SIZE):
             if grid[row][col] == 'R':
-                points += calculate_residential_points(grid, row, col)
+                points += calculate_residential_points(grid, row, col, restricted_residential)
             elif grid[row][col] == 'I':
                 points += calculate_industry_points(grid, row, col)
             elif grid[row][col] == 'C':
@@ -71,7 +71,7 @@ def calculate_points(grid):
     return points
 
 # Calculate points for Residential buildings
-def calculate_residential_points(grid, row, col):
+def calculate_residential_points(grid, row, col, restricted_residential):
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     adjacent_to_industry = False
@@ -79,23 +79,29 @@ def calculate_residential_points(grid, row, col):
         if 0 <= r < GRID_SIZE and 0 <= c < GRID_SIZE:
             if grid[r][c] == 'I':
                 adjacent_to_industry = True
-                points = 1  # Maximum 1 point if adjacent to Industry
     if not adjacent_to_industry:
         for r, c in adjacents:
             if 0 <= r < GRID_SIZE and 0 <= c < GRID_SIZE:
-                if grid[r][c] == 'R' or grid[r][c] == 'C':
+                if grid[r][c] == 'R':
+                    points += 1
+                elif grid[r][c] == 'C':
                     points += 1
                 elif grid[r][c] == 'O':
                     points += 2
+    if adjacent_to_industry:
+        for r, c in adjacents:
+            if 0 <= r < GRID_SIZE and 0 <= c < GRID_SIZE:
+                if grid[r][c] == 'R':
+                    points += 1
+                elif grid[r][c] == 'C':
+                    points += 1
+                elif grid[r][c] == 'O':
+                    points += 1
     return points
 
 # Calculate points for Industry buildings
 def calculate_industry_points(grid, row, col):
-    points = 0
-    for r in range(GRID_SIZE):
-        for c in range(GRID_SIZE):
-            if grid[r][c] == 'I':
-                points += 1
+    points = 1
     return points
 
 # Calculate points for Commercial buildings
@@ -121,13 +127,25 @@ def calculate_park_points(grid, row, col):
 # Calculate points for Road buildings
 def calculate_road_points(grid, row, col):
     points = 0
-    for c in range(GRID_SIZE):
-        if grid[row][c] == '*':
-            points += 1
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < GRID_SIZE and 0 <= c < GRID_SIZE:
+            if grid[r][c] == '*':
+                points += 1
     return points
 
 # Generate coin for Commercial next to Residential
 def generate_coins_for_commercial(grid, row, col):
+    coins = 0
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < GRID_SIZE and 0 <= c < GRID_SIZE:
+            if grid[r][c] == 'R':
+                coins += 1
+    return coins
+
+# Generate coin for Industry next to Residential
+def generate_coins_for_industry(grid, row, col):
     coins = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -145,13 +163,15 @@ def is_adjacent_to_existing_building(grid, row, col):
     return False
 
 # Save game state to CSV
-def save_game(grid, coins, turn, score):
+def save_game(grid, coins, turn, score, restricted_residential):
     with open('NgeeAnnCity_Arcade_SavedGame.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Grid', 'Coins', 'Turn', 'Score'])
+        writer.writerow(['Grid', 'Coins', 'Turn', 'Score', 'RestrictedResidential'])
         for row in grid:
             writer.writerow(row)
         writer.writerow([coins, turn, score])
+        for key, value in restricted_residential.items():
+            writer.writerow([key[0], key[1], value])
 
 # Load game state from CSV
 def load_game():
@@ -163,12 +183,15 @@ def load_game():
             for i in range(GRID_SIZE):
                 row = next(reader, None)
                 if row is None:
-                    return None, None, None, None
+                    return None, None, None, None, None
                 # Convert 'None' strings to actual None values
                 grid.append([None if cell == 'None' else cell for cell in row])
             coins, turn, score = map(int, next(reader))
-            return grid, coins, turn, score
-    return None, None, None, None
+            restricted_residential = {}
+            for row in reader:
+                restricted_residential[(int(row[0]), int(row[1]))] = int(row[2])
+            return grid, coins, turn, score, restricted_residential
+    return None, None, None, None, None
 
 # Save leaderboard to CSV
 def save_leaderboard(name, score):
@@ -346,10 +369,9 @@ def arcade_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if load_saved_game_button.collidepoint(event.pos):
-                    grid, coins, turn, score = load_game()
+                    grid, coins, turn, score, restricted_residential = load_game()
                     if grid is not None:
-                        print(f"Loaded game: coins={coins}, turn={turn}, score={score}")
-                        arcade_game(grid, coins, turn, score)
+                        arcade_game(grid, coins, turn, score, restricted_residential)
                     else:
                         draw_text('No saved game found. Please start a new game.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 360)
                         pygame.display.update()
@@ -391,9 +413,9 @@ def free_play_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if load_saved_game_button.collidepoint(event.pos):
-                    grid, coins, turn, score = load_game()
+                    grid, coins, turn, score, restricted_residential = load_game()
                     if grid is not None:
-                        arcade_game(grid, coins, turn, score)
+                        arcade_game(grid, coins, turn, score, restricted_residential)
                     else:
                         draw_text('No saved game found. Please start a new game.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 360)
                         pygame.display.update()
@@ -406,7 +428,7 @@ def free_play_menu():
         pygame.display.update()
 
 # Arcade Game Mode
-def arcade_game(grid=None, coins=None, turn=None, score=None):
+def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None):
     if grid is None:
         grid = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     if coins is None:
@@ -415,6 +437,8 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
         turn = 0
     if score is None:
         score = 0
+    if restricted_residential is None:
+        restricted_residential = {}
     demolish_mode = False
     buildings = random.sample(BUILDINGS, 2)
     first_turn = (turn == 0)
@@ -479,13 +503,15 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
         if illegal_placement:
             draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, BLACK, screen, 20, 160)
 
+        
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:
-                    save_game(grid, coins, turn, score)
+                    save_game(grid, coins, turn, score, restricted_residential)
                     return
                 if event.key == pygame.K_d:
                     demolish_mode = not demolish_mode
@@ -508,7 +534,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
                         if building_count > 1:
                             grid[row][col] = None
                             turn += 1
-                            score = calculate_points(grid)
+                            score = calculate_points(grid, restricted_residential)
                             illegal_placement = False
                             demolish_mode = False
                     elif not demolish_mode and (grid[row][col] is None or grid[row][col] == '') and selected_building:
@@ -517,9 +543,13 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
                             coins -= 1
                             if selected_building == 'Commercial':
                                 coins += generate_coins_for_commercial(grid, row, col)
+                            if selected_building == 'Industry':
+                                coins += generate_coins_for_industry(grid, row, col)  # Generate coins for adjacent residential buildings
                             turn += 1
-                            new_score = calculate_points(grid)
-                            save_game(grid, coins, turn, score)
+                            new_score = calculate_points(grid, restricted_residential)
+                            points_earned = new_score - score
+                            score = new_score
+                            save_game(grid, coins, turn, score, restricted_residential)
                             buildings = random.sample(BUILDINGS, 2)  # Randomize new buildings for the next turn
                             first_turn = False
                             selected_building = None
@@ -527,40 +557,19 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
                             illegal_placement = False
 
                             # Log points calculation details
-                            point_difference = new_score - score
-                            print(f"Turn {turn}:")
-                            if point_difference > 0:
-                                for r in range(GRID_SIZE):
-                                    for c in range(GRID_SIZE):
-                                        if grid[r][c] == 'R':
-                                            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                                                nr, nc = r + dr, c + dc
-                                                if 0 <= nr < GRID_SIZE and 0 <= nc < GRID_SIZE:
-                                                    if grid[nr][nc] == 'R':
-                                                        print("+1 Point for Residential adjacent Residential")
-                                                    elif grid[nr][nc] == 'C':
-                                                        print("+1 Point for Residential adjacent Commercial")
-                                                    elif grid[nr][nc] == 'O':
-                                                        print("+2 Points for Residential adjacent Park")
-                                        elif grid[r][c] == 'I':
-                                            print("+1 Point for each Industry in city")
-                                        elif grid[r][c] == 'C':
-                                            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                                                nr, nc = r + dr, c + dc
-                                                if 0 <= nr < GRID_SIZE and 0 <= nc < GRID_SIZE:
-                                                    if grid[nr][nc] == 'C':
-                                                        print("+1 Point for Commercial adjacent Commercial")
-                                        elif grid[r][c] == 'O':
-                                            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                                                nr, nc = r + dr, c + dc
-                                                if 0 <= nr < GRID_SIZE and 0 <= nc < GRID_SIZE:
-                                                    if grid[nr][nc] == 'O':
-                                                        print("+1 Point for Park adjacent Park")
-                                        elif grid[r][c] == '*':
-                                            for nc in range(GRID_SIZE):
-                                                if grid[r][nc] == '*':
-                                                    print("+1 Point for each connected Road in the same row")
-                            score = new_score
+                            if points_earned > 0:
+                                if selected_building == 'R':
+                                    print(f"+{points_earned} Points for Residential")
+                                elif selected_building == 'I':
+                                    print(f"+{points_earned} Points for Industry")
+                                elif selected_building == 'C':
+                                    print(f"+{points_earned} Points for Commercial")
+                                elif selected_building == 'O':
+                                    print(f"+{points_earned} Points for Park")
+                                elif selected_building == '*':
+                                    print(f"+{points_earned} Points for Road")
+                            else:
+                                print(f"No points earned for {selected_building}")
 
         # Simple animation for score increase
         if animation_frame > 0:
@@ -574,9 +583,6 @@ def arcade_game(grid=None, coins=None, turn=None, score=None):
             save_leaderboard(name, score)
             clear_saved_game()  # Clear the saved game after the game ends
             break
-
-
-
 
 if __name__ == "__main__":
     main_menu()
