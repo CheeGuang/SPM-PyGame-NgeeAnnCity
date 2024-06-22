@@ -11,7 +11,7 @@ pygame.init()
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 850
 GRID_SIZE_ARCADE = 20  # Arcade Mode Grid Size
-CELL_SIZE = 30
+CELL_SIZE = 25
 TITLE_FONT = pygame.font.SysFont("Arial", 40)
 BUTTON_FONT = pygame.font.SysFont("Arial", 30)
 GAME_FONT = pygame.font.SysFont("Arial", 20)
@@ -333,7 +333,7 @@ def expand_grid(grid, new_size):
     offset = (new_size - old_size) // 2
     for row in range(old_size):
         for col in range(old_size):
-            new_grid[row + offset][col + offset] = grid[row][col]
+            new_grid[row][col] = grid[row][col]
     return new_grid
 
 def save_game_free_play(grid, coins, turn, score):
@@ -675,7 +675,6 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             clear_saved_game_arcade()
             break
 
-# Free Play Game Mode
 def free_play_game(grid=None, coins=None, turn=None, score=None):
     if grid is None:
         grid = [[None for _ in range(5)] for _ in range(5)]
@@ -689,6 +688,48 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
     selected_building = None
     animation_frame = 0
     illegal_placement = False
+    expansion_count = 0
+    profit, upkeep, net_profit = 0, 0, 0  # Initialize profit, upkeep, and net_profit
+
+    def calculate_profit_and_upkeep(grid):
+        profit = 0
+        upkeep = 0
+        residential_clusters = set()
+
+        def find_residential_clusters(row, col):
+            if (row, col) not in residential_clusters:
+                residential_clusters.add((row, col))
+                adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+                for r, c in adjacents:
+                    if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and grid[r][c] == 'R':
+                        find_residential_clusters(r, c)
+
+        for row in range(len(grid)):
+            for col in range(len(grid[0])):
+                if grid[row][col] == 'R':
+                    profit += 1
+                    if (row, col) not in residential_clusters:
+                        find_residential_clusters(row, col)
+                        upkeep += 1
+                elif grid[row][col] == 'I':
+                    profit += 2
+                    upkeep += 1
+                elif grid[row][col] == 'C':
+                    profit += 3
+                    upkeep += 2
+                elif grid[row][col] == 'O':
+                    upkeep += 1
+                elif grid[row][col] == '*':
+                    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+                    connected = False
+                    for r, c in adjacents:
+                        if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and grid[r][c] == '*':
+                            connected = True
+                            break
+                    if not connected:
+                        upkeep += 1
+
+        return profit, upkeep
 
     def draw_grid():
         grid_size = len(grid)
@@ -731,7 +772,8 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text(f'Turn: {turn}    Score: {score}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 20)
-        
+        draw_text(f'Profit: {profit}  Upkeep: {upkeep}  Net: {net_profit}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+
         draw_grid()
         draw_rules()
 
@@ -747,6 +789,8 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
 
         if illegal_placement:
             draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, BLACK, screen, 20, 160)
+
+        action_performed = False
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -783,6 +827,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
                         score = calculate_points_free_play(grid)
                         illegal_placement = False
                         demolish_mode = False
+                        action_performed = True
                     elif not demolish_mode and (grid[row][col] is None or grid[row][col] == '') and selected_building:
                         grid[row][col] = BUILDING_SYMBOLS[selected_building]
                         turn += 1
@@ -793,6 +838,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
                         selected_building = None
                         animation_frame = 30
                         illegal_placement = False
+                        action_performed = True
 
                         if points_earned > 0:
                             if selected_building == 'R':
@@ -809,13 +855,21 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
                             print(f"No points earned for {selected_building}")
 
                         if col == 0 or col == len(grid[0]) - 1 or row == 0 or row == len(grid) - 1:
-                            grid = expand_grid(grid, len(grid) + 10)
+                            if expansion_count < 2:
+                                new_size = len(grid) + 10
+                                grid = expand_grid(grid, new_size)
+                                expansion_count += 1
 
         if animation_frame > 0:
             animation_frame -= 1
             draw_text('+', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2 + 50, 20)
 
+        if action_performed:
+            profit, upkeep = calculate_profit_and_upkeep(grid)
+            net_profit = profit - upkeep
+
         pygame.display.update()
+
 
 if __name__ == "__main__":
     main_menu()
