@@ -39,22 +39,26 @@ pygame.display.set_caption("Ngee Ann City")
 
 # Functions to draw text
 def draw_text(text, font, color, surface, x, y):
+    # Draw centered text
     text_obj = font.render(text, True, color)
     text_rect = text_obj.get_rect(center=(x, y))
     surface.blit(text_obj, text_rect)
 
 def draw_left_aligned_text(text, font, color, surface, x, y):
+    # Draw left-aligned text
     text_obj = font.render(text, True, color)
     text_rect = text_obj.get_rect(topleft=(x, y))
     surface.blit(text_obj, text_rect)
 
 def draw_centered_text(text, font, color, surface, rect):
+    # Draw centered text within a given rectangle
     text_obj = font.render(text, True, color)
     text_rect = text_obj.get_rect(center=rect.center)
     surface.blit(text_obj, text_rect)
 
 # Prompt for player name
 def prompt_player_name():
+    # Prompt the player to enter their name
     pygame.display.update()
     screen.fill(BACKGROUND_COLOR)
     draw_text('Enter your name:', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40)
@@ -79,6 +83,7 @@ def prompt_player_name():
 
 # Save leaderboard to CSV
 def save_leaderboard(name, score):
+    # Save the player's name and score to the leaderboard CSV file
     # Prevent CSV injection
     name = name.replace("=", "").replace("+", "").replace("-", "").replace("@", "")
     with open('NgeeAnnCity_Arcade_Leaderboard.csv', 'a', newline='') as file:
@@ -87,16 +92,19 @@ def save_leaderboard(name, score):
 
 # Clear saved game for Arcade mode
 def clear_saved_game_arcade():
+    # Delete the saved game file for Arcade mode if it exists
     if os.path.exists('NgeeAnnCity_Arcade_SavedGame.csv'):
         os.remove('NgeeAnnCity_Arcade_SavedGame.csv')
 
 # Display leaderboard
 def display_leaderboard():
+    # Display the leaderboard on the screen
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text('Leaderboard - Arcade Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
         
         if os.path.exists('NgeeAnnCity_Arcade_Leaderboard.csv'):
+            # Load and display the top 10 scores from the leaderboard CSV file
             leaderboard = []
             with open('NgeeAnnCity_Arcade_Leaderboard.csv', 'r') as file:
                 reader = csv.reader(file)
@@ -124,6 +132,7 @@ def display_leaderboard():
         
 # Arcade Mode Functions
 def calculate_points_arcade(grid, restricted_residential):
+    # Calculate the total points for the current state of the grid
     points = 0
     for row in range(GRID_SIZE_ARCADE):
         for col in range(GRID_SIZE_ARCADE):
@@ -140,6 +149,7 @@ def calculate_points_arcade(grid, restricted_residential):
     return points
 
 def calculate_residential_points_arcade(grid, row, col, restricted_residential):
+    # Calculate points for a residential building
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     adjacent_to_industry = False
@@ -168,10 +178,12 @@ def calculate_residential_points_arcade(grid, row, col, restricted_residential):
     return points
 
 def calculate_industry_points_arcade(grid, row, col):
+    # Calculate points for an industry building
     points = 1
     return points
 
 def calculate_commercial_points_arcade(grid, row, col):
+    # Calculate points for a commercial building
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -181,6 +193,7 @@ def calculate_commercial_points_arcade(grid, row, col):
     return points
 
 def calculate_park_points_arcade(grid, row, col):
+    # Calculate points for a park
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -190,6 +203,7 @@ def calculate_park_points_arcade(grid, row, col):
     return points
 
 def calculate_road_points_arcade(grid, row, col):
+    # Calculate points for a road
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -199,6 +213,7 @@ def calculate_road_points_arcade(grid, row, col):
     return points
 
 def generate_coins_for_commercial_arcade(grid, row, col):
+    # Generate coins for a commercial building
     coins = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -208,6 +223,7 @@ def generate_coins_for_commercial_arcade(grid, row, col):
     return coins
 
 def generate_coins_for_industry_arcade(grid, row, col):
+    # Generate coins for an industry building
     coins = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -217,6 +233,7 @@ def generate_coins_for_industry_arcade(grid, row, col):
     return coins
 
 def is_adjacent_to_existing_building_arcade(grid, row, col):
+    # Check if a cell is adjacent to an existing building
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE and (grid[r][c] is not None and grid[r][c] != ''):
@@ -224,6 +241,7 @@ def is_adjacent_to_existing_building_arcade(grid, row, col):
     return False
 
 def save_game_arcade(grid, coins, turn, score, restricted_residential):
+    # Save the current game state to a CSV file for Arcade mode
     with open('NgeeAnnCity_Arcade_SavedGame.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Grid', 'Coins', 'Turn', 'Score', 'RestrictedResidential'])
@@ -234,6 +252,7 @@ def save_game_arcade(grid, coins, turn, score, restricted_residential):
             writer.writerow([key[0], key[1], value])
 
 def load_game_arcade():
+    # Load the saved game state from a CSV file for Arcade mode
     if os.path.exists('NgeeAnnCity_Arcade_SavedGame.csv'):
         with open('NgeeAnnCity_Arcade_SavedGame.csv', 'r') as file:
             reader = csv.reader(file)
@@ -253,6 +272,7 @@ def load_game_arcade():
 
 # Free Play Mode Functions
 def calculate_points_free_play(grid):
+    # Calculate the total points for the current state of the grid in Free Play mode
     points = 0
     for row in range(len(grid)):
         for col in range(len(grid[0])):
@@ -269,6 +289,7 @@ def calculate_points_free_play(grid):
     return points
 
 def calculate_residential_points_free_play(grid, row, col):
+    # Calculate points for a residential building in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     adjacent_to_industry = False
@@ -297,10 +318,12 @@ def calculate_residential_points_free_play(grid, row, col):
     return points
 
 def calculate_industry_points_free_play(grid, row, col):
+    # Calculate points for an industry building in Free Play mode
     points = 1
     return points
 
 def calculate_commercial_points_free_play(grid, row, col):
+    # Calculate points for a commercial building in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -310,6 +333,7 @@ def calculate_commercial_points_free_play(grid, row, col):
     return points
 
 def calculate_park_points_free_play(grid, row, col):
+    # Calculate points for a park in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -319,6 +343,7 @@ def calculate_park_points_free_play(grid, row, col):
     return points
 
 def calculate_road_points_free_play(grid, row, col):
+    # Calculate points for a road in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -328,6 +353,7 @@ def calculate_road_points_free_play(grid, row, col):
     return points
 
 def expand_grid(grid, new_size):
+    # Expand the grid to a new size, centered on the existing grid
     new_grid = [[None for _ in range(new_size)] for _ in range(new_size)]
     old_size = len(grid)
     offset = (new_size - old_size) // 2
@@ -337,6 +363,7 @@ def expand_grid(grid, new_size):
     return new_grid
 
 def save_game_free_play(grid, coins, turn, score):
+    # Save the current game state to a CSV file for Free Play mode
     with open('NgeeAnnCity_FreePlay_SavedGame.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Grid', 'Coins', 'Turn', 'Score'])
@@ -345,6 +372,7 @@ def save_game_free_play(grid, coins, turn, score):
         writer.writerow([coins, turn, score])
 
 def load_game_free_play():
+    # Load the saved game state from a CSV file for Free Play mode
     if os.path.exists('NgeeAnnCity_FreePlay_SavedGame.csv'):
         with open('NgeeAnnCity_FreePlay_SavedGame.csv', 'r') as file:
             reader = csv.reader(file)
@@ -360,6 +388,7 @@ def load_game_free_play():
 
 # Main Menu with buttons
 def main_menu():
+    # Display the main menu with options to play, view the leaderboard, or exit
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text('Ngee Ann City', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
@@ -399,6 +428,7 @@ def main_menu():
 
 # Play Menu with buttons
 def play_menu():
+    # Display the play menu with options to choose Arcade Mode or Free Play
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text('Play Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
@@ -437,6 +467,7 @@ def play_menu():
 
 # Arcade Menu with buttons
 def arcade_menu():
+    # Display the Arcade Mode menu with options to load a saved game or start a new game
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text('Arcade Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
@@ -481,6 +512,7 @@ def arcade_menu():
 
 # Free Play Menu with buttons
 def free_play_menu():
+    # Display the Free Play menu with options to load a saved game or start a new game
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text('Free Play Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
@@ -525,6 +557,7 @@ def free_play_menu():
 
 # Arcade Game Mode
 def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None):
+    # Start or continue an Arcade Mode game
     if grid is None:
         grid = [[None for _ in range(GRID_SIZE_ARCADE)] for _ in range(GRID_SIZE_ARCADE)]
     if coins is None:
@@ -543,6 +576,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
     illegal_placement = False
 
     def draw_grid():
+        # Draw the game grid
         for row in range(GRID_SIZE_ARCADE):
             for col in range(GRID_SIZE_ARCADE):
                 rect = pygame.Rect(col * CELL_SIZE + MARGIN_LEFT, row * CELL_SIZE + MARGIN_TOP, CELL_SIZE, CELL_SIZE)
@@ -552,6 +586,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                     draw_centered_text(grid[row][col], GAME_FONT, BLACK, screen, rect)
 
     def draw_rules():
+        # Draw the rules and legend on the screen
         rules_x = SCREEN_WIDTH - MARGIN_RIGHT + TEXT_MARGIN_RIGHT + 50
         rules_y = MARGIN_TOP
         draw_text("Legend", BUTTON_FONT, BLACK, screen, rules_x, rules_y)
@@ -676,6 +711,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             break
 
 def free_play_game(grid=None, coins=None, turn=None, score=None):
+    # Start or continue a Free Play mode game
     if grid is None:
         grid = [[None for _ in range(5)] for _ in range(5)]
     if coins is None:
@@ -692,6 +728,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
     profit, upkeep, net_profit = 0, 0, 0  # Initialize profit, upkeep, and net_profit
 
     def calculate_profit_and_upkeep(grid):
+        # Calculate profit and upkeep based on the current state of the grid
         profit = 0
         upkeep = 0
         residential_clusters = set()
@@ -732,6 +769,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
         return profit, upkeep
 
     def draw_grid():
+        # Draw the game grid for Free Play mode
         grid_size = len(grid)
         for row in range(grid_size):
             for col in range(grid_size):
@@ -742,6 +780,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
                     draw_centered_text(grid[row][col], GAME_FONT, BLACK, screen, rect)
 
     def draw_rules():
+        # Draw the rules and legend for Free Play mode
         rules_x = SCREEN_WIDTH - MARGIN_RIGHT + TEXT_MARGIN_RIGHT + 50
         rules_y = MARGIN_TOP
         draw_text("Legend", BUTTON_FONT, BLACK, screen, rules_x, rules_y)
