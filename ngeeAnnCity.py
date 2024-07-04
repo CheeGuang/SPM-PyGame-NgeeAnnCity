@@ -555,7 +555,6 @@ def free_play_menu():
 
         pygame.display.update()
 
-# Arcade Game Mode
 def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None):
     # Start or continue an Arcade Mode game
     if grid is None:
@@ -658,13 +657,10 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                 row = (y - MARGIN_TOP) // CELL_SIZE
                 if 0 <= col < GRID_SIZE_ARCADE and 0 <= row < GRID_SIZE_ARCADE:
                     if demolish_mode and grid[row][col] is not None:
-                        building_count = sum([1 for r in range(GRID_SIZE_ARCADE) for c in range(GRID_SIZE_ARCADE) if grid[r][c] is not None])
-                        if building_count > 1:
-                            grid[row][col] = None
-                            turn += 1
-                            score = calculate_points_arcade(grid, restricted_residential)
-                            illegal_placement = False
-                            demolish_mode = False
+                        grid[row][col] = None
+                        turn += 1
+                        illegal_placement = False
+                        demolish_mode = False
                     elif not demolish_mode and (grid[row][col] is None or grid[row][col] == '') and selected_building:
                         if first_turn or is_adjacent_to_existing_building_arcade(grid, row, col):
                             grid[row][col] = BUILDING_SYMBOLS[selected_building]
