@@ -231,7 +231,7 @@ def calculate_park_points_arcade(grid, row, col):
                 if not skip_residential:
                     points += 0
             elif grid[r][c] == 'O':
-                points += 1
+                points += 0
     return points
 
 
