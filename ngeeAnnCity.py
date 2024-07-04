@@ -184,6 +184,7 @@ def calculate_industry_points_arcade(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
+                points += 1  # Add 1 point for each adjacent Residential building
                 # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
                 skip_residential = False
@@ -209,7 +210,7 @@ def calculate_commercial_points_arcade(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 1
+                    points += 0  # No points for adjacent Residential
             elif grid[r][c] == 'C':
                 points += 1
     return points
@@ -228,7 +229,7 @@ def calculate_park_points_arcade(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 2
+                    points += 0
             elif grid[r][c] == 'O':
                 points += 1
     return points
@@ -703,6 +704,11 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                                 coins += generate_coins_for_commercial_arcade(grid, row, col)
                             if selected_building == 'Industry':
                                 coins += generate_coins_for_industry_arcade(grid, row, col)
+                                # Recalculate score for Residential buildings adjacent to this Industry
+                                adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+                                for r, c in adjacents:
+                                    if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE and grid[r][c] == 'R':
+                                        score += 1
                             turn += 1
                             new_score = calculate_points_arcade(grid, restricted_residential)
                             points_earned = new_score - score
@@ -739,6 +745,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             save_leaderboard(name, score)
             clear_saved_game_arcade()
             break
+
 
 
 
