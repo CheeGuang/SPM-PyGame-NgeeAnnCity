@@ -149,7 +149,9 @@ def calculate_points_arcade(grid, restricted_residential):
     return points
 
 def calculate_residential_points_arcade(grid, row, col, restricted_residential):
-    # Calculate points for a residential building
+    if restricted_residential.get((row, col), False):
+        return 0  # If this Residential building is restricted, it can't gain points
+
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     adjacent_to_industry = False
@@ -157,6 +159,8 @@ def calculate_residential_points_arcade(grid, row, col, restricted_residential):
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'I':
                 adjacent_to_industry = True
+                restricted_residential[(row, col)] = True  # Mark this Residential building as restricted
+
     if not adjacent_to_industry:
         for r, c in adjacents:
             if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
@@ -288,8 +292,10 @@ def calculate_points_free_play(grid):
                 points += calculate_road_points_free_play(grid, row, col)
     return points
 
-def calculate_residential_points_free_play(grid, row, col):
-    # Calculate points for a residential building in Free Play mode
+def calculate_residential_points_free_play(grid, row, col, restricted_residential):
+    if restricted_residential.get((row, col), False):
+        return 0  # If this Residential building is restricted, it can't gain points
+
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     adjacent_to_industry = False
@@ -297,6 +303,8 @@ def calculate_residential_points_free_play(grid, row, col):
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == 'I':
                 adjacent_to_industry = True
+                restricted_residential[(row, col)] = True  # Mark this Residential building as restricted
+
     if not adjacent_to_industry:
         for r, c in adjacents:
             if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
@@ -556,7 +564,6 @@ def free_play_menu():
         pygame.display.update()
 
 def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None):
-    # Start or continue an Arcade Mode game
     if grid is None:
         grid = [[None for _ in range(GRID_SIZE_ARCADE)] for _ in range(GRID_SIZE_ARCADE)]
     if coins is None:
