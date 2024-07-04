@@ -96,6 +96,12 @@ def clear_saved_game_arcade():
     if os.path.exists('NgeeAnnCity_Arcade_SavedGame.csv'):
         os.remove('NgeeAnnCity_Arcade_SavedGame.csv')
 
+# Clear saved game for Arcade mode
+def clear_saved_game_free_play():
+    # Delete the saved game file for Arcade mode if it exists
+    if os.path.exists('NgeeAnnCity_FreePlay_SavedGame.csv'):
+        os.remove('NgeeAnnCity_FreePlay_SavedGame.csv')
+
 # Display leaderboard
 def display_leaderboard():
     # Display the leaderboard on the screen
@@ -147,8 +153,6 @@ def calculate_points_arcade(grid, restricted_residential):
                 points += calculate_road_points_arcade(grid, row, col)
     return points
 
-
-
 def calculate_residential_points_arcade(grid, row, col, restricted_residential):
     if restricted_residential.get((row, col), False):
         return 0  # If this Residential building is restricted, it can't gain or lose points
@@ -176,7 +180,6 @@ def calculate_residential_points_arcade(grid, row, col, restricted_residential):
                 points += 2
 
     return points
-
 
 def calculate_industry_points_arcade(grid, row, col):
     points = 1
@@ -222,7 +225,7 @@ def calculate_park_points_arcade(grid, row, col):
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
                 # Check if the adjacent Residential building is adjacent to an Industry building
-                residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+                residential_adjacents = [(r-1, c), (r+1, c), (r, col-1), (r, col+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
                     if 0 <= rr < GRID_SIZE_ARCADE and 0 <= rc < GRID_SIZE_ARCADE and grid[rr][rc] == 'I':
@@ -233,7 +236,6 @@ def calculate_park_points_arcade(grid, row, col):
             elif grid[r][c] == 'O':
                 points += 0
     return points
-
 
 def calculate_road_points_arcade(grid, row, col):
     # Calculate points for a road
@@ -299,18 +301,17 @@ def load_game_arcade():
             coins, turn, score = map(int, next(reader))
             restricted_residential = {}
             for row in reader:
-                restricted_residential[(int(row[0]), int(row[1]))] = int(row[2])
+                restricted_residential[(int(row[0]), int(row[1]))] = row[2] == 'True'
             return grid, coins, turn, score, restricted_residential
     return None, None, None, None, None
 
 # Free Play Mode Functions
-def calculate_points_free_play(grid):
-    # Calculate the total points for the current state of the grid in Free Play mode
+def calculate_points_free_play(grid, restricted_residential):
     points = 0
     for row in range(len(grid)):
         for col in range(len(grid[0])):
             if grid[row][col] == 'R':
-                points += calculate_residential_points_free_play(grid, row, col)
+                points += calculate_residential_points_free_play(grid, row, col, restricted_residential)
             elif grid[row][col] == 'I':
                 points += calculate_industry_points_free_play(grid, row, col)
             elif grid[row][col] == 'C':
@@ -323,7 +324,7 @@ def calculate_points_free_play(grid):
 
 def calculate_residential_points_free_play(grid, row, col, restricted_residential):
     if restricted_residential.get((row, col), False):
-        return 0  # If this Residential building is restricted, it can't gain points
+        return 0  # If this Residential building is restricted, it can't gain or lose points
 
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
@@ -333,54 +334,80 @@ def calculate_residential_points_free_play(grid, row, col, restricted_residentia
             if grid[r][c] == 'I':
                 adjacent_to_industry = True
                 restricted_residential[(row, col)] = True  # Mark this Residential building as restricted
+                break
 
-    if not adjacent_to_industry:
-        for r, c in adjacents:
-            if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
-                if grid[r][c] == 'R':
-                    points += 1
-                elif grid[r][c] == 'C':
-                    points += 1
-                elif grid[r][c] == 'O':
-                    points += 2
     if adjacent_to_industry:
-        for r, c in adjacents:
-            if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
-                if grid[r][c] == 'R':
-                    points += 1
-                elif grid[r][c] == 'C':
-                    points += 1
-                elif grid[r][c] == 'O':
-                    points += 1
+        return 0
+
+    for r, c in adjacents:
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
+            if grid[r][c] == 'R':
+                points += 1
+            elif grid[r][c] == 'C':
+                points += 1
+            elif grid[r][c] == 'O':
+                points += 2
+
     return points
 
 def calculate_industry_points_free_play(grid, row, col):
-    # Calculate points for an industry building in Free Play mode
     points = 1
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
+            if grid[r][c] == 'R':
+                points += 1  # Add 1 point for each adjacent Residential building
+                # Check if the adjacent Residential building is adjacent to an Industry building
+                residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+                skip_residential = False
+                for rr, rc in residential_adjacents:
+                    if 0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I':
+                        skip_residential = True
+                        break
+                if not skip_residential:
+                    points += 1
     return points
 
 def calculate_commercial_points_free_play(grid, row, col):
-    # Calculate points for a commercial building in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
-            if grid[r][c] == 'C':
+            if grid[r][c] == 'R':
+                # Check if the adjacent Residential building is adjacent to an Industry building
+                residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+                skip_residential = False
+                for rr, rc in residential_adjacents:
+                    if 0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I':
+                        skip_residential = True
+                        break
+                if not skip_residential:
+                    points += 0  # No points for adjacent Residential
+            elif grid[r][c] == 'C':
                 points += 1
     return points
 
 def calculate_park_points_free_play(grid, row, col):
-    # Calculate points for a park in Free Play mode
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
-            if grid[r][c] == 'O':
-                points += 1
+            if grid[r][c] == 'R':
+                # Check if the adjacent Residential building is adjacent to an Industry building
+                residential_adjacents = [(r-1, c), (r+1, c), (r, col-1), (r, col+1)]
+                skip_residential = False
+                for rr, rc in residential_adjacents:
+                    if 0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I':
+                        skip_residential = True
+                        break
+                if not skip_residential:
+                    points += 0
+            elif grid[r][c] == 'O':
+                points += 0
     return points
 
 def calculate_road_points_free_play(grid, row, col):
-    # Calculate points for a road in Free Play mode
+    # Calculate points for a road
     points = 0
     adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
     for r, c in adjacents:
@@ -388,6 +415,34 @@ def calculate_road_points_free_play(grid, row, col):
             if grid[r][c] == '*':
                 points += 1
     return points
+
+def generate_coins_for_commercial_free_play(grid, row, col):
+    # Generate coins for a commercial building
+    coins = 0
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
+            if grid[r][c] == 'R':
+                coins += 1
+    return coins
+
+def generate_coins_for_industry_free_play(grid, row, col):
+    # Generate coins for an industry building
+    coins = 0
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
+            if grid[r][c] == 'R':
+                coins += 1
+    return coins
+
+def is_adjacent_to_existing_building_free_play(grid, row, col):
+    # Check if a cell is adjacent to an existing building
+    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
+    for r, c in adjacents:
+        if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and (grid[r][c] is not None and grid[r][c] != ''):
+            return True
+    return False
 
 def expand_grid(grid, new_size):
     # Expand the grid to a new size, centered on the existing grid
@@ -399,14 +454,16 @@ def expand_grid(grid, new_size):
             new_grid[row][col] = grid[row][col]
     return new_grid
 
-def save_game_free_play(grid, coins, turn, score):
+def save_game_free_play(grid, coins, turn, score, restricted_residential, expansion_count):
     # Save the current game state to a CSV file for Free Play mode
     with open('NgeeAnnCity_FreePlay_SavedGame.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Grid', 'Coins', 'Turn', 'Score'])
+        writer.writerow(['Grid', 'Coins', 'Turn', 'Score', 'RestrictedResidential', 'ExpansionCount'])
         for row in grid:
             writer.writerow(row)
-        writer.writerow([coins, turn, score])
+        writer.writerow([coins, turn, score, expansion_count])
+        for key, value in restricted_residential.items():
+            writer.writerow([key[0], key[1], value])
 
 def load_game_free_play():
     # Load the saved game state from a CSV file for Free Play mode
@@ -416,12 +473,16 @@ def load_game_free_play():
             next(reader)  # Skip header
             grid = []
             row = next(reader, None)
-            while row and len(row) > 0:
+            while row and len(row) > 0 and not row[0].isdigit():
                 grid.append([None if cell == 'None' else cell for cell in row])
                 row = next(reader, None)
-            coins, turn, score = map(int, next(reader))
-            return grid, coins, turn, score
-    return None, None, None, None
+            if row:
+                coins, turn, score, expansion_count = map(int, row)
+                restricted_residential = {}
+                for row in reader:
+                    restricted_residential[(int(row[0]), int(row[1]))] = row[2] == 'True'
+                return grid, coins, turn, score, restricted_residential, expansion_count
+    return None, None, None, None, None, 0
 
 # Main Menu with buttons
 def main_menu():
@@ -578,9 +639,9 @@ def free_play_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if load_saved_game_button.collidepoint(event.pos):
-                    grid, coins, turn, score = load_game_free_play()
+                    grid, coins, turn, score, restricted_residential, expansion_count = load_game_free_play()
                     if grid is not None:
-                        free_play_game(grid, coins, turn, score)
+                        free_play_game(grid, coins, turn, score, restricted_residential, expansion_count)
                     else:
                         draw_text('No saved game found. Please start a new game.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 360)
                         pygame.display.update()
@@ -746,66 +807,22 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             clear_saved_game_arcade()
             break
 
-
-
-
-def free_play_game(grid=None, coins=None, turn=None, score=None):
-    # Start or continue a Free Play mode game
+def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None, expansion_count=0):
     if grid is None:
         grid = [[None for _ in range(5)] for _ in range(5)]
     if coins is None:
-        coins = float('inf')
+        coins = 0
     if turn is None:
         turn = 0
     if score is None:
         score = 0
+    if restricted_residential is None:
+        restricted_residential = {}
     demolish_mode = False
     selected_building = None
     animation_frame = 0
     illegal_placement = False
-    expansion_count = 0
-    profit, upkeep, net_profit = 0, 0, 0  # Initialize profit, upkeep, and net_profit
-
-    def calculate_profit_and_upkeep(grid):
-        # Calculate profit and upkeep based on the current state of the grid
-        profit = 0
-        upkeep = 0
-        residential_clusters = set()
-
-        def find_residential_clusters(row, col):
-            if (row, col) not in residential_clusters:
-                residential_clusters.add((row, col))
-                adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
-                for r, c in adjacents:
-                    if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and grid[r][c] == 'R':
-                        find_residential_clusters(r, c)
-
-        for row in range(len(grid)):
-            for col in range(len(grid[0])):
-                if grid[row][col] == 'R':
-                    profit += 1
-                    if (row, col) not in residential_clusters:
-                        find_residential_clusters(row, col)
-                        upkeep += 1
-                elif grid[row][col] == 'I':
-                    profit += 2
-                    upkeep += 1
-                elif grid[row][col] == 'C':
-                    profit += 3
-                    upkeep += 2
-                elif grid[row][col] == 'O':
-                    upkeep += 1
-                elif grid[row][col] == '*':
-                    adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
-                    connected = False
-                    for r, c in adjacents:
-                        if 0 <= r < len(grid) and 0 <= c < len(grid[0]) and grid[r][c] == '*':
-                            connected = True
-                            break
-                    if not connected:
-                        upkeep += 1
-
-        return profit, upkeep
+    first_turn = (turn == 0)  # Check if it's the first turn
 
     def draw_grid():
         # Draw the game grid for Free Play mode
@@ -849,8 +866,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
 
     while True:
         screen.fill(BACKGROUND_COLOR)
-        draw_text(f'Turn: {turn}    Score: {score}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 20)
-        draw_text(f'Profit: {profit}  Upkeep: {upkeep}  Net: {net_profit}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 20)
 
         draw_grid()
         draw_rules()
@@ -868,15 +884,13 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
         if illegal_placement:
             draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, BLACK, screen, 20, 160)
 
-        action_performed = False
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:
-                    save_game_free_play(grid, coins, turn, score)
+                    save_game_free_play(grid, coins, turn, score, restricted_residential, expansion_count)
                     return
                 if event.key == pygame.K_d:
                     demolish_mode = not demolish_mode
@@ -902,49 +916,81 @@ def free_play_game(grid=None, coins=None, turn=None, score=None):
                     if demolish_mode and grid[row][col] is not None:
                         grid[row][col] = None
                         turn += 1
-                        score = calculate_points_free_play(grid)
+                        score = calculate_points_free_play(grid, restricted_residential)
                         illegal_placement = False
                         demolish_mode = False
-                        action_performed = True
                     elif not demolish_mode and (grid[row][col] is None or grid[row][col] == '') and selected_building:
-                        grid[row][col] = BUILDING_SYMBOLS[selected_building]
-                        turn += 1
-                        new_score = calculate_points_free_play(grid)
-                        points_earned = new_score - score
-                        score = new_score
-                        save_game_free_play(grid, coins, turn, score)
-                        selected_building = None
-                        animation_frame = 30
-                        illegal_placement = False
-                        action_performed = True
+                        if first_turn or is_adjacent_to_existing_building_free_play(grid, row, col):
+                            grid[row][col] = BUILDING_SYMBOLS[selected_building]
+                            turn += 1
+                            if selected_building == 'Commercial':
+                                coins += generate_coins_for_commercial_free_play(grid, row, col)
+                            if selected_building == 'Industry':
+                                coins += generate_coins_for_industry_free_play(grid, row, col)
+                            new_score = calculate_points_free_play(grid, restricted_residential)
+                            points_earned = new_score - score
+                            score = new_score
+                            save_game_free_play(grid, coins, turn, score, restricted_residential, expansion_count)
+                            selected_building = None
+                            animation_frame = 30
+                            illegal_placement = False
+                            first_turn = False  # Set first_turn to False after placing the first building
 
-                        if points_earned > 0:
-                            if selected_building == 'R':
-                                print(f"+{points_earned} Points for Residential")
-                            elif selected_building == 'I':
-                                print(f"+{points_earned} Points for Industry")
-                            elif selected_building == 'C':
-                                print(f"+{points_earned} Points for Commercial")
-                            elif selected_building == 'O':
-                                print(f"+{points_earned} Points for Park")
-                            elif selected_building == '*':
-                                print(f"+{points_earned} Points for Road")
+                            if points_earned > 0:
+                                if selected_building == 'R':
+                                    print(f"+{points_earned} Points for Residential")
+                                elif selected_building == 'I':
+                                    print(f"+{points_earned} Points for Industry")
+                                elif selected_building == 'C':
+                                    print(f"+{points_earned} Points for Commercial")
+                                elif selected_building == 'O':
+                                    print(f"+{points_earned} Points for Park")
+                                elif selected_building == '*':
+                                    print(f"+{points_earned} Points for Road")
+                            else:
+                                print(f"No points earned for {selected_building}")
+
+                            if col == 0 or col == len(grid[0]) - 1 or row == 0 or row == len(grid) - 1:
+                                if expansion_count < 2:
+                                    new_size = len(grid) + 10
+                                    grid = expand_grid(grid, new_size)
+                                    expansion_count += 1
                         else:
-                            print(f"No points earned for {selected_building}")
-
-                        if col == 0 or col == len(grid[0]) - 1 or row == 0 or row == len(grid) - 1:
-                            if expansion_count < 2:
-                                new_size = len(grid) + 10
-                                grid = expand_grid(grid, new_size)
-                                expansion_count += 1
+                            illegal_placement = True
 
         if animation_frame > 0:
             animation_frame -= 1
             draw_text('+', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2 + 50, 20)
 
-        if action_performed:
-            profit, upkeep = calculate_profit_and_upkeep(grid)
-            net_profit = profit - upkeep
+        pygame.display.update()
+        
+        # Check end-game condition
+        if all((cell is not None and cell is not '') for row in grid for cell in row):
+            end_game_screen(score, coins)
+            
+            break
+
+
+def end_game_screen(score, coins):
+    # Display the end-game screen
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        draw_text('Game Over!', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100)
+        draw_text(f'Total Points: {score}', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        draw_text(f'Total Coins: {coins}', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40)
+        draw_text('Press M to return to Main Menu', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
+
+        clear_saved_game_free_play()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_m:
+
+                    main_menu()
+                    return
 
         pygame.display.update()
 
