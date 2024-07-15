@@ -367,12 +367,15 @@ def calculate_residential_points_free_play(grid, row, col, restricted_residentia
                 break
 
     if adjacent_to_industry:
-        return 0
+        return 1
 
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == 'R':
-                points += 1
+                if any(0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I' for rr, rc in [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]):
+                    points += 1
+                else:
+                    points += 2
             elif grid[r][c] == 'C':
                 points += 1
             elif grid[r][c] == 'O':
@@ -386,12 +389,10 @@ def calculate_industry_points_free_play(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == 'R':
-                points += 1  # Add 1 point for each adjacent Residential building
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
-                    if 0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I':
+                    if (rr != row or rc != col) and 0 <= rr < len(grid) and 0 <= rc < len(grid[0]) and grid[rr][rc] == 'I':
                         skip_residential = True
                         break
                 if not skip_residential:
@@ -404,7 +405,6 @@ def calculate_commercial_points_free_play(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == 'R':
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
@@ -412,9 +412,9 @@ def calculate_commercial_points_free_play(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 0  # No points for adjacent Residential
+                    points += 1  # No points for adjacent Residential
             elif grid[r][c] == 'C':
-                points += 1
+                points += 2
     return points
 
 def calculate_park_points_free_play(grid, row, col):
@@ -423,7 +423,6 @@ def calculate_park_points_free_play(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == 'R':
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, col-1), (r, col+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
@@ -431,9 +430,9 @@ def calculate_park_points_free_play(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 0
+                    points += 2
             elif grid[r][c] == 'O':
-                points += 0
+                points += 2
     return points
 
 def calculate_road_points_free_play(grid, row, col):
@@ -443,7 +442,7 @@ def calculate_road_points_free_play(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
             if grid[r][c] == '*':
-                points += 1
+                points += 2  # Gain 2 points for each adjacent road
     return points
 
 def generate_coins_for_commercial_free_play(grid, row, col):
@@ -877,6 +876,32 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
         draw_text("Road:", GAME_FONT, WHITE, screen, rules_x, legend_y + 340)
         draw_text("1 pt each connected road", GAME_FONT, WHITE, screen, rules_x, legend_y + 360)
         draw_text("in the same row", GAME_FONT, WHITE, screen, rules_x, legend_y + 380)
+    
+    def update_score_and_coins_free_play(row, col, operation):
+        nonlocal score, coins
+        building = grid[row][col]
+        points = 0
+        coins_gained = 0
+
+        if building == 'R':
+            points = calculate_residential_points_free_play(grid, row, col, restricted_residential)
+        elif building == 'I':
+            points = calculate_industry_points_free_play(grid, row, col)
+            coins_gained = generate_coins_for_industry_free_play(grid, row, col)
+        elif building == 'C':
+            points = calculate_commercial_points_free_play(grid, row, col)
+            coins_gained = generate_coins_for_commercial_free_play(grid, row, col)
+        elif building == 'O':
+            points = calculate_park_points_free_play(grid, row, col)
+        elif building == '*':
+            points = calculate_road_points_free_play(grid, row, col)
+
+        if operation == 'add':
+            score += points
+            coins += coins_gained
+        elif operation == 'remove':
+            score -= points
+            coins -= coins_gained
 
     while True:
         screen.fill(BACKGROUND_COLOR)
@@ -928,43 +953,23 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
                 row = (y - MARGIN_TOP) // CELL_SIZE
                 if 0 <= col < len(grid) and 0 <= row < len(grid):
                     if demolish_mode and grid[row][col] is not None:
+                        update_score_and_coins_free_play(row, col, 'remove')
                         grid[row][col] = None
                         turn += 1
-                        score = calculate_points_free_play(grid, restricted_residential)
                         illegal_placement = False
                         demolish_mode = False
                     elif not demolish_mode and (grid[row][col] is None or grid[row][col] == '') and selected_building:
                         if first_turn or is_adjacent_to_existing_building_free_play(grid, row, col):
                             grid[row][col] = BUILDING_SYMBOLS[selected_building]
                             turn += 1
-                            if selected_building == 'Commercial':
-                                coins += generate_coins_for_commercial_free_play(grid, row, col)
-                            if selected_building == 'Industry':
-                                coins += generate_coins_for_industry_free_play(grid, row, col)
-                            new_score = calculate_points_free_play(grid, restricted_residential)
-                            points_earned = new_score - score
-                            score = new_score
+                            update_score_and_coins_free_play(row, col, 'add')
                             save_game_free_play(grid, coins, turn, score, restricted_residential, expansion_count)
                             selected_building = None
                             animation_frame = 30
                             illegal_placement = False
                             first_turn = False  # Set first_turn to False after placing the first building
 
-                            if points_earned > 0:
-                                if selected_building == 'R':
-                                    print(f"+{points_earned} Points for Residential")
-                                elif selected_building == 'I':
-                                    print(f"+{points_earned} Points for Industry")
-                                elif selected_building == 'C':
-                                    print(f"+{points_earned} Points for Commercial")
-                                elif selected_building == 'O':
-                                    print(f"+{points_earned} Points for Park")
-                                elif selected_building == '*':
-                                    print(f"+{points_earned} Points for Road")
-                            else:
-                                print(f"No points earned for {selected_building}")
-
-                            if col == 0 or col == len(grid[0]) - 1 or row == 0 or row == len(grid) - 1:
+                            if col == len(grid[0]) - 1 or row == len(grid) - 1:
                                 if expansion_count < 2:
                                     new_size = len(grid) + 10
                                     grid = expand_grid(grid, new_size)
@@ -981,7 +986,6 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
         # Check end-game condition
         if all((cell is not None and cell is not '') for row in grid for cell in row):
             end_game_screen(score, coins)
-            
             break
 
 
