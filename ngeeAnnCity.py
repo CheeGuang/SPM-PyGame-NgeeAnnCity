@@ -35,10 +35,11 @@ TEXT_MARGIN_RIGHT = 20
 TEXT_PADDING_LEFT = 20
 TEXT_PADDING_TOP = 10
 
-# Load and play soundtrack
-pygame.mixer.music.load('./Soundtrack.mp3')
-pygame.mixer.music.set_volume(0.03)  # Set volume to 20%
+# Load sound effects
+pygame.mixer.music.load('./MenuSoundtrack.mp3')
+pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
 pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+mouse_click_sound = pygame.mixer.Sound('./MouseClick.mp3')
 
 
 # Screen setup
@@ -539,6 +540,7 @@ def main_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONUP:
+                mouse_click_sound.play()
                 if play_button.collidepoint(event.pos):
                     play_menu()
                 elif leaderboard_button.collidepoint(event.pos):
@@ -574,11 +576,12 @@ def settings_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONUP:
+                mouse_click_sound.play()
                 if mute_button.collidepoint(event.pos):
                     if pygame.mixer.music.get_volume() > 0:
                         pygame.mixer.music.set_volume(0)
                     else:
-                        pygame.mixer.music.set_volume(0.03)  # Set to your desired volume level
+                        pygame.mixer.music.set_volume(0.6)  # Set to your desired volume level
                 elif back_button.collidepoint(event.pos):
                     return
 
@@ -610,6 +613,7 @@ def play_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONUP:
+                mouse_click_sound.play()
                 if arcade_mode_button.collidepoint(event.pos):
                     arcade_menu()
                 elif free_play_button.collidepoint(event.pos):
@@ -645,6 +649,7 @@ def arcade_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONUP:
+                mouse_click_sound.play()
                 if load_saved_game_button.collidepoint(event.pos):
                     grid, coins, turn, score, restricted_residential = load_game_arcade()
                     if grid is not None:
@@ -686,6 +691,7 @@ def free_play_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONUP:
+                mouse_click_sound.play()
                 if load_saved_game_button.collidepoint(event.pos):
                     grid, coins, turn, score, restricted_residential, expansion_count = load_game_free_play()
                     if grid is not None:
@@ -702,6 +708,10 @@ def free_play_menu():
         pygame.display.update()
 
 def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None):
+    pygame.mixer.music.load('./GameSoundtrack.mp3')
+    pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+    pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+
     if grid is None:
         grid = [[None for _ in range(GRID_SIZE_ARCADE)] for _ in range(GRID_SIZE_ARCADE)]
     if coins is None:
@@ -809,6 +819,9 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:
                     save_game_arcade(grid, coins, turn, score, restricted_residential)
+                    pygame.mixer.music.load('./MenuSoundtrack.mp3')
+                    pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+                    pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
                     return
                 if event.key == pygame.K_d:
                     demolish_mode = not demolish_mode
@@ -855,9 +868,15 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             name = prompt_player_name()
             save_leaderboard(name, score)
             clear_saved_game_arcade()
+            pygame.mixer.music.load('./MenuSoundtrack.mp3')
+            pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+            pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
             break
 
 def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_residential=None, expansion_count=0):
+    pygame.mixer.music.load('./GameSoundtrack.mp3')
+    pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+    pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
     if grid is None:
         grid = [[None for _ in range(5)] for _ in range(5)]
     if coins is None:
@@ -967,6 +986,9 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_m:
                     save_game_free_play(grid, coins, turn, score, restricted_residential, expansion_count)
+                    pygame.mixer.music.load('./MenuSoundtrack.mp3')
+                    pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+                    pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
                     return
                 if event.key == pygame.K_d:
                     demolish_mode = not demolish_mode
@@ -1023,6 +1045,9 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
         # Check end-game condition
         if all((cell is not None and cell is not '') for row in grid for cell in row):
             end_game_screen(score, coins)
+            pygame.mixer.music.load('./MenuSoundtrack.mp3')
+            pygame.mixer.music.set_volume(0.6)  # Set volume to 60%
+            pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
             break
 
 
@@ -1052,3 +1077,4 @@ def end_game_screen(score, coins):
 
 if __name__ == "__main__":
     main_menu()
+
