@@ -24,7 +24,7 @@ BLUE = (173, 216, 230)
 GREEN = (144, 238, 144)
 BUILDINGS = ['Residential', 'Industry', 'Commercial', 'Park', 'Road']
 BUILDING_SYMBOLS = {'Residential': 'R', 'Industry': 'I', 'Commercial': 'C', 'Park': 'O', 'Road': '*'}
-BACKGROUND_COLOR = BLACK
+BACKGROUND_COLOR = (25, 25, 25)
 GRID_COLOR = BLACK
 CELL_COLOR = WHITE
 MARGIN_LEFT = 50
@@ -169,31 +169,19 @@ def display_leaderboard():
 # Arcade Mode Functions
 def calculate_points_arcade(grid, restricted_residential):
     points = 0
-    print("Starting point calculation...")
     for row in range(GRID_SIZE_ARCADE):
         for col in range(GRID_SIZE_ARCADE):
             cell = grid[row][col]
             if cell == 'R':
-                print(f"Calculating points for Residential at ({row}, {col})")
                 points += calculate_residential_points_arcade(grid, row, col, restricted_residential)
-                print(f"Total points after Residential: {points}")
             elif cell == 'I':
-                print(f"Calculating points for Industry at ({row}, {col})")
                 points += calculate_industry_points_arcade(grid, row, col)
-                print(f"Total points after Industry: {points}")
             elif cell == 'C':
-                print(f"Calculating points for Commercial at ({row}, {col})")
                 points += calculate_commercial_points_arcade(grid, row, col)
-                print(f"Total points after Commercial: {points}")
             elif cell == 'O':
-                print(f"Calculating points for Park at ({row}, {col})")
                 points += calculate_park_points_arcade(grid, row, col)
-                print(f"Total points after Park: {points}")
             elif cell == '*':
-                print(f"Calculating points for Road at ({row}, {col})")
                 points += calculate_road_points_arcade(grid, row, col)
-                print(f"Total points after Road: {points}")
-    print(f"Final total points: {points}\n\n")
     return points
 
 def calculate_residential_points_arcade(grid, row, col, restricted_residential):
@@ -211,12 +199,15 @@ def calculate_residential_points_arcade(grid, row, col, restricted_residential):
                 break
 
     if adjacent_to_industry:
-        return 0
+        return 1
 
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
-                points += 1
+                if any(0 <= rr < GRID_SIZE_ARCADE and 0 <= rc < GRID_SIZE_ARCADE and grid[rr][rc] == 'I' for rr, rc in [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]):
+                    points += 1
+                else:
+                    points += 2
             elif grid[r][c] == 'C':
                 points += 1
             elif grid[r][c] == 'O':
@@ -230,12 +221,10 @@ def calculate_industry_points_arcade(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
-                points += 1  # Add 1 point for each adjacent Residential building
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
-                    if 0 <= rr < GRID_SIZE_ARCADE and 0 <= rc < GRID_SIZE_ARCADE and grid[rr][rc] == 'I':
+                    if (rr != row or rc != col) and 0 <= rr < GRID_SIZE_ARCADE and 0 <= rc < GRID_SIZE_ARCADE and grid[rr][rc] == 'I':
                         skip_residential = True
                         break
                 if not skip_residential:
@@ -248,7 +237,6 @@ def calculate_commercial_points_arcade(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
@@ -256,9 +244,9 @@ def calculate_commercial_points_arcade(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 0  # No points for adjacent Residential
+                    points += 1  # No points for adjacent Residential
             elif grid[r][c] == 'C':
-                points += 1
+                points += 2
     return points
 
 def calculate_park_points_arcade(grid, row, col):
@@ -267,7 +255,6 @@ def calculate_park_points_arcade(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == 'R':
-                # Check if the adjacent Residential building is adjacent to an Industry building
                 residential_adjacents = [(r-1, c), (r+1, c), (r, col-1), (r, col+1)]
                 skip_residential = False
                 for rr, rc in residential_adjacents:
@@ -275,9 +262,9 @@ def calculate_park_points_arcade(grid, row, col):
                         skip_residential = True
                         break
                 if not skip_residential:
-                    points += 0
+                    points += 2
             elif grid[r][c] == 'O':
-                points += 0
+                points += 2
     return points
 
 def calculate_road_points_arcade(grid, row, col):
@@ -287,7 +274,7 @@ def calculate_road_points_arcade(grid, row, col):
     for r, c in adjacents:
         if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE:
             if grid[r][c] == '*':
-                points += 1
+                points += 2  # Gain 2 points for each adjacent road
     return points
 
 def generate_coins_for_commercial_arcade(grid, row, col):
@@ -733,10 +720,36 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
         draw_text("1 pt each connected road", GAME_FONT, WHITE, screen, rules_x, legend_y + 360)
         draw_text("in the same row", GAME_FONT, WHITE, screen, rules_x, legend_y + 380)
 
+    def update_score_and_coins(row, col, operation):
+        nonlocal score, coins
+        building = grid[row][col]
+        points = 0
+        coins_gained = 0
+
+        if building == 'R':
+            points = calculate_residential_points_arcade(grid, row, col, restricted_residential)
+        elif building == 'I':
+            points = calculate_industry_points_arcade(grid, row, col)
+            coins_gained = generate_coins_for_industry_arcade(grid, row, col)
+        elif building == 'C':
+            points = calculate_commercial_points_arcade(grid, row, col)
+            coins_gained = generate_coins_for_commercial_arcade(grid, row, col)
+        elif building == 'O':
+            points = calculate_park_points_arcade(grid, row, col)
+        elif building == '*':
+            points = calculate_road_points_arcade(grid, row, col)
+
+        if operation == 'add':
+            score += points
+            coins += coins_gained
+        elif operation == 'remove':
+            score -= points
+            coins -= coins_gained
+    
     while True:
         screen.fill(BACKGROUND_COLOR)
         draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, WHITE, screen, SCREEN_WIDTH // 2, 20)
-        
+
         draw_grid()
         draw_rules()
 
@@ -777,6 +790,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                 row = (y - MARGIN_TOP) // CELL_SIZE
                 if 0 <= col < GRID_SIZE_ARCADE and 0 <= row < GRID_SIZE_ARCADE:
                     if demolish_mode and grid[row][col] is not None:
+                        update_score_and_coins(row, col, 'remove')
                         grid[row][col] = None
                         coins -= 1
                         turn += 1
@@ -786,18 +800,8 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                         if first_turn or is_adjacent_to_existing_building_arcade(grid, row, col):
                             grid[row][col] = BUILDING_SYMBOLS[selected_building]
                             coins -= 1
-                            if selected_building == 'Commercial':
-                                coins += generate_coins_for_commercial_arcade(grid, row, col)
-                            if selected_building == 'Industry':
-                                coins += generate_coins_for_industry_arcade(grid, row, col)
-                                # Recalculate score for Residential buildings adjacent to this Industry
-                                adjacents = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
-                                for r, c in adjacents:
-                                    if 0 <= r < GRID_SIZE_ARCADE and 0 <= c < GRID_SIZE_ARCADE and grid[r][c] == 'R':
-                                        score += 1
                             turn += 1
-                            new_score = calculate_points_arcade(grid, restricted_residential)
-                            score = new_score
+                            update_score_and_coins(row, col, 'add')
                             save_game_arcade(grid, coins, turn, score, restricted_residential)
                             buildings = random.sample(BUILDINGS, 2)
                             first_turn = False
