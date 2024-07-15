@@ -6,6 +6,7 @@ import os
 
 # Initialize Pygame
 pygame.init()
+pygame.mixer.init()  # Initialize mixer for sound
 
 # Constants
 SCREEN_WIDTH = 1000
@@ -13,6 +14,7 @@ SCREEN_HEIGHT = 850
 GRID_SIZE_ARCADE = 20  # Arcade Mode Grid Size
 CELL_SIZE = 25
 TITLE_FONT = pygame.font.SysFont("Arial", 40)
+MENU_TITLE_FONT = pygame.font.SysFont("Arial", 120)
 BUTTON_FONT = pygame.font.SysFont("Arial", 30)
 GAME_FONT = pygame.font.SysFont("Arial", 20)
 WHITE = (255, 255, 255)
@@ -22,7 +24,7 @@ BLUE = (173, 216, 230)
 GREEN = (144, 238, 144)
 BUILDINGS = ['Residential', 'Industry', 'Commercial', 'Park', 'Road']
 BUILDING_SYMBOLS = {'Residential': 'R', 'Industry': 'I', 'Commercial': 'C', 'Park': 'O', 'Road': '*'}
-BACKGROUND_COLOR = BLUE
+BACKGROUND_COLOR = BLACK
 GRID_COLOR = BLACK
 CELL_COLOR = WHITE
 MARGIN_LEFT = 50
@@ -33,9 +35,32 @@ TEXT_MARGIN_RIGHT = 20
 TEXT_PADDING_LEFT = 20
 TEXT_PADDING_TOP = 10
 
+# Load and play soundtrack
+pygame.mixer.music.load('./Soundtrack.mp3')
+pygame.mixer.music.set_volume(0.03)  # Set volume to 20%
+pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+
+
 # Screen setup
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Ngee Ann City")
+
+# Function to draw buttons and handle hover effect
+def draw_button_with_hover(button, text, font, color, hover_color, surface):
+    mouse_pos = pygame.mouse.get_pos()
+    if button.collidepoint(mouse_pos):
+        pygame.draw.rect(surface, hover_color, button, border_radius=8)
+    else:
+        pygame.draw.rect(surface, color, button, border_radius=8)
+    pygame.draw.rect(surface, BLACK, button, 1, border_radius=8)
+    draw_centered_text(text, font, BLACK, surface, button)
+
+# Functions to load Ngee Ann Poly image
+def load_background_image(path):
+    return pygame.image.load(path)
+
+def draw_background_image(image, surface):
+    surface.blit(image, (0, 0))
 
 # Functions to draw text
 def draw_text(text, font, color, surface, x, y):
@@ -61,7 +86,7 @@ def prompt_player_name():
     # Prompt the player to enter their name
     pygame.display.update()
     screen.fill(BACKGROUND_COLOR)
-    draw_text('Enter your name:', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40)
+    draw_text('Enter your name:', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40)
     pygame.display.update()
     name = ""
     while True:
@@ -77,8 +102,8 @@ def prompt_player_name():
                 else:
                     name += event.unicode
         screen.fill(BACKGROUND_COLOR)
-        draw_text('Enter your name:', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40)
-        draw_text(name, BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 10)
+        draw_text('Enter your name:', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40)
+        draw_text(name, BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 10)
         pygame.display.update()
 
 # Save leaderboard to CSV
@@ -105,9 +130,10 @@ def clear_saved_game_free_play():
 # Display leaderboard
 def display_leaderboard():
     # Display the leaderboard on the screen
-    while True:
+    displaying = True
+    while displaying:
         screen.fill(BACKGROUND_COLOR)
-        draw_text('Leaderboard - Arcade Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        draw_text('Leaderboard - Arcade Mode', TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, 50)
         
         if os.path.exists('NgeeAnnCity_Arcade_Leaderboard.csv'):
             # Load and display the top 10 scores from the leaderboard CSV file
@@ -119,12 +145,12 @@ def display_leaderboard():
             leaderboard.sort(key=lambda x: x[1], reverse=True)  # Sort by score in descending order
             y_offset = 100
             for i, (name, score) in enumerate(leaderboard[:10]):  # Display top 10
-                draw_text(f'{i + 1}. {name}: {score}', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, y_offset)
+                draw_text(f'{i + 1}. {name}: {score}', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, y_offset)
                 y_offset += 40
         else:
-            draw_text('No leaderboard data available.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 100)
+            draw_text('No leaderboard data available.', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, 100)
         
-        draw_text('Press B to go back to main menu', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT - 40)
+        draw_text('Press B to go back to main menu', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT - 40)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -132,25 +158,42 @@ def display_leaderboard():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_b:
-                    return
+                    displaying = False
 
         pygame.display.update()
+
+    screen.fill(BACKGROUND_COLOR)  # Clear the screen to remove lingering text
+    pygame.display.update()
+    return
         
 # Arcade Mode Functions
 def calculate_points_arcade(grid, restricted_residential):
     points = 0
+    print("Starting point calculation...")
     for row in range(GRID_SIZE_ARCADE):
         for col in range(GRID_SIZE_ARCADE):
-            if grid[row][col] == 'R':
+            cell = grid[row][col]
+            if cell == 'R':
+                print(f"Calculating points for Residential at ({row}, {col})")
                 points += calculate_residential_points_arcade(grid, row, col, restricted_residential)
-            elif grid[row][col] == 'I':
+                print(f"Total points after Residential: {points}")
+            elif cell == 'I':
+                print(f"Calculating points for Industry at ({row}, {col})")
                 points += calculate_industry_points_arcade(grid, row, col)
-            elif grid[row][col] == 'C':
+                print(f"Total points after Industry: {points}")
+            elif cell == 'C':
+                print(f"Calculating points for Commercial at ({row}, {col})")
                 points += calculate_commercial_points_arcade(grid, row, col)
-            elif grid[row][col] == 'O':
+                print(f"Total points after Commercial: {points}")
+            elif cell == 'O':
+                print(f"Calculating points for Park at ({row}, {col})")
                 points += calculate_park_points_arcade(grid, row, col)
-            elif grid[row][col] == '*':
+                print(f"Total points after Park: {points}")
+            elif cell == '*':
+                print(f"Calculating points for Road at ({row}, {col})")
                 points += calculate_road_points_arcade(grid, row, col)
+                print(f"Total points after Road: {points}")
+    print(f"Final total points: {points}\n\n")
     return points
 
 def calculate_residential_points_arcade(grid, row, col, restricted_residential):
@@ -486,28 +529,22 @@ def load_game_free_play():
 
 # Main Menu with buttons
 def main_menu():
-    # Display the main menu with options to play, view the leaderboard, or exit
+    background_image = load_background_image('./NgeeAnnPoly.jpg')  # Replace 'background.jpg' with your image file path
+
     while True:
-        screen.fill(BACKGROUND_COLOR)
-        draw_text('Ngee Ann City', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        screen.fill(BLACK)  # Fill the screen with black color
+        draw_background_image(background_image, screen)  # Draw the background image
 
-        button_width = 300
-        button_height = 50
+        button_width = 400
+        button_height = 70
 
-        play_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 150, button_width, button_height)
-        leaderboard_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 220, button_width, button_height)
-        exit_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 290, button_width, button_height)
+        play_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
+        leaderboard_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
+        exit_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)
 
-        pygame.draw.rect(screen, WHITE, play_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, leaderboard_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, exit_button, border_radius=6)
-        pygame.draw.rect(screen, BLACK, play_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, leaderboard_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, exit_button, 1, border_radius=6)
-
-        draw_centered_text('Play', BUTTON_FONT, BLACK, screen, play_button)
-        draw_centered_text('Leaderboard', BUTTON_FONT, BLACK, screen, leaderboard_button)
-        draw_centered_text('Exit', BUTTON_FONT, BLACK, screen, exit_button)
+        draw_button_with_hover(play_button, 'Play', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(leaderboard_button, 'Leaderboard', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(exit_button, 'Exit', BUTTON_FONT, WHITE, GREY, screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -526,28 +563,24 @@ def main_menu():
 
 # Play Menu with buttons
 def play_menu():
-    # Display the play menu with options to choose Arcade Mode or Free Play
+    background_image = load_background_image('./MenuBackground.png')  # Replace 'background.jpg' with your image file path
+
     while True:
-        screen.fill(BACKGROUND_COLOR)
-        draw_text('Play Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        screen.fill(BLACK)  # Fill the screen with black color
+        draw_background_image(background_image, screen)
 
-        button_width = 300
-        button_height = 50
+        draw_text('Play', MENU_TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, 200)
 
-        arcade_mode_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 150, button_width, button_height)
-        free_play_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 220, button_width, button_height)
-        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 290, button_width, button_height)
+        button_width = 400
+        button_height = 70
 
-        pygame.draw.rect(screen, WHITE, arcade_mode_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, free_play_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, back_button, border_radius=6)
-        pygame.draw.rect(screen, BLACK, arcade_mode_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, free_play_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, back_button, 1, border_radius=6)
+        arcade_mode_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
+        free_play_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
+        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)
 
-        draw_centered_text('Arcade Mode', BUTTON_FONT, BLACK, screen, arcade_mode_button)
-        draw_centered_text('Free Play', BUTTON_FONT, BLACK, screen, free_play_button)
-        draw_centered_text('Back', BUTTON_FONT, BLACK, screen, back_button)
+        draw_button_with_hover(arcade_mode_button, 'Arcade Mode', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(free_play_button, 'Free Play', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(back_button, 'Back', BUTTON_FONT, WHITE, GREY, screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -565,28 +598,24 @@ def play_menu():
 
 # Arcade Menu with buttons
 def arcade_menu():
-    # Display the Arcade Mode menu with options to load a saved game or start a new game
+    background_image = load_background_image('./MenuBackground.png')  # Replace 'background.jpg' with your image file path
+
     while True:
-        screen.fill(BACKGROUND_COLOR)
-        draw_text('Arcade Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        screen.fill(BLACK)  # Fill the screen with black color
+        draw_background_image(background_image, screen)
+        
+        draw_text('Arcade Mode', MENU_TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, 200)
 
-        button_width = 300
-        button_height = 50
+        button_width = 400
+        button_height = 70
 
-        load_saved_game_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 150, button_width, button_height)
-        start_new_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 220, button_width, button_height)
-        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 290, button_width, button_height)
+        load_saved_game_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
+        start_new_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
+        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)
 
-        pygame.draw.rect(screen, WHITE, load_saved_game_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, start_new_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, back_button, border_radius=6)
-        pygame.draw.rect(screen, BLACK, load_saved_game_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, start_new_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, back_button, 1, border_radius=6)
-
-        draw_centered_text('Load Saved Game', BUTTON_FONT, BLACK, screen, load_saved_game_button)
-        draw_centered_text('Start New', BUTTON_FONT, BLACK, screen, start_new_button)
-        draw_centered_text('Back', BUTTON_FONT, BLACK, screen, back_button)
+        draw_button_with_hover(load_saved_game_button, 'Load Saved Game', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(start_new_button, 'Start New', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(back_button, 'Back', BUTTON_FONT, WHITE, GREY, screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -598,7 +627,7 @@ def arcade_menu():
                     if grid is not None:
                         arcade_game(grid, coins, turn, score, restricted_residential)
                     else:
-                        draw_text('No saved game found. Please start a new game.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 360)
+                        draw_text('No saved game found. Please start a new game.', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, 360)
                         pygame.display.update()
                         pygame.time.wait(2000)
                 elif start_new_button.collidepoint(event.pos):
@@ -610,28 +639,24 @@ def arcade_menu():
 
 # Free Play Menu with buttons
 def free_play_menu():
-    # Display the Free Play menu with options to load a saved game or start a new game
+    background_image = load_background_image('./MenuBackground.png')  # Replace 'background.jpg' with your image file path
+
     while True:
-        screen.fill(BACKGROUND_COLOR)
-        draw_text('Free Play Mode', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, 50)
+        screen.fill(BLACK)  # Fill the screen with black color
+        draw_background_image(background_image, screen)
+        
+        draw_text('Free Play Mode', MENU_TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, 200)
 
-        button_width = 300
-        button_height = 50
+        button_width = 400
+        button_height = 70
 
-        load_saved_game_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 150, button_width, button_height)
-        start_new_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 220, button_width, button_height)
-        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 290, button_width, button_height)
+        load_saved_game_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
+        start_new_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
+        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)
 
-        pygame.draw.rect(screen, WHITE, load_saved_game_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, start_new_button, border_radius=6)
-        pygame.draw.rect(screen, WHITE, back_button, border_radius=6)
-        pygame.draw.rect(screen, BLACK, load_saved_game_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, start_new_button, 1, border_radius=6)
-        pygame.draw.rect(screen, BLACK, back_button, 1, border_radius=6)
-
-        draw_centered_text('Load Saved Game', BUTTON_FONT, BLACK, screen, load_saved_game_button)
-        draw_centered_text('Start New', BUTTON_FONT, BLACK, screen, start_new_button)
-        draw_centered_text('Back', BUTTON_FONT, BLACK, screen, back_button)
+        draw_button_with_hover(load_saved_game_button, 'Load Saved Game', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(start_new_button, 'Start New', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(back_button, 'Back', BUTTON_FONT, WHITE, GREY, screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -643,7 +668,7 @@ def free_play_menu():
                     if grid is not None:
                         free_play_game(grid, coins, turn, score, restricted_residential, expansion_count)
                     else:
-                        draw_text('No saved game found. Please start a new game.', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, 360)
+                        draw_text('No saved game found. Please start a new game.', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, 360)
                         pygame.display.update()
                         pygame.time.wait(2000)
                 elif start_new_button.collidepoint(event.pos):
@@ -683,50 +708,50 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
     def draw_rules():
         rules_x = SCREEN_WIDTH - MARGIN_RIGHT + TEXT_MARGIN_RIGHT + 50
         rules_y = MARGIN_TOP
-        draw_text("Legend", BUTTON_FONT, BLACK, screen, rules_x, rules_y)
+        draw_text("Legend", BUTTON_FONT, WHITE, screen, rules_x, rules_y)
         legend_y = rules_y + 40
         for building, symbol in BUILDING_SYMBOLS.items():
-            draw_text(f'{building}: {symbol}', GAME_FONT, BLACK, screen, rules_x, legend_y)
+            draw_text(f'{building}: {symbol}', GAME_FONT, WHITE, screen, rules_x, legend_y)
             legend_y += 20
 
-        draw_text("Points System", BUTTON_FONT, BLACK, screen, rules_x, legend_y + 20)
+        draw_text("Points System", BUTTON_FONT, WHITE, screen, rules_x, legend_y + 20)
         legend_y += 60
-        draw_text("Residential:", GAME_FONT, BLACK, screen, rules_x, legend_y)
-        draw_text("1 pt if adjacent to Industry", GAME_FONT, BLACK, screen, rules_x, legend_y + 20)
-        draw_text("Otherwise:", GAME_FONT, BLACK, screen, rules_x, legend_y + 40)
-        draw_text("+1 pt each adjacent R/C", GAME_FONT, BLACK, screen, rules_x, legend_y + 60)
-        draw_text("+2 pts each adjacent Park", GAME_FONT, BLACK, screen, rules_x, legend_y + 80)
-        draw_text("Industry:", GAME_FONT, BLACK, screen, rules_x, legend_y + 120)
-        draw_text("1 pt each Industry in city", GAME_FONT, BLACK, screen, rules_x, legend_y + 140)
-        draw_text("+1 coin each adjacent R", GAME_FONT, BLACK, screen, rules_x, legend_y + 160)
-        draw_text("Commercial:", GAME_FONT, BLACK, screen, rules_x, legend_y + 200)
-        draw_text("1 pt each adjacent Commercial", GAME_FONT, BLACK, screen, rules_x, legend_y + 220)
-        draw_text("+1 coin each adjacent Residential", GAME_FONT, BLACK, screen, rules_x, legend_y + 240)
-        draw_text("Park:", GAME_FONT, BLACK, screen, rules_x, legend_y + 280)
-        draw_text("1 pt each adjacent Park", GAME_FONT, BLACK, screen, rules_x, legend_y + 300)
-        draw_text("Road:", GAME_FONT, BLACK, screen, rules_x, legend_y + 340)
-        draw_text("1 pt each connected road", GAME_FONT, BLACK, screen, rules_x, legend_y + 360)
-        draw_text("in the same row", GAME_FONT, BLACK, screen, rules_x, legend_y + 380)
+        draw_text("Residential:", GAME_FONT, WHITE, screen, rules_x, legend_y)
+        draw_text("1 pt if adjacent to Industry", GAME_FONT, WHITE, screen, rules_x, legend_y + 20)
+        draw_text("Otherwise:", GAME_FONT, WHITE, screen, rules_x, legend_y + 40)
+        draw_text("+1 pt each adjacent R/C", GAME_FONT, WHITE, screen, rules_x, legend_y + 60)
+        draw_text("+2 pts each adjacent Park", GAME_FONT, WHITE, screen, rules_x, legend_y + 80)
+        draw_text("Industry:", GAME_FONT, WHITE, screen, rules_x, legend_y + 120)
+        draw_text("1 pt each Industry in city", GAME_FONT, WHITE, screen, rules_x, legend_y + 140)
+        draw_text("+1 coin each adjacent R", GAME_FONT, WHITE, screen, rules_x, legend_y + 160)
+        draw_text("Commercial:", GAME_FONT, WHITE, screen, rules_x, legend_y + 200)
+        draw_text("1 pt each adjacent Commercial", GAME_FONT, WHITE, screen, rules_x, legend_y + 220)
+        draw_text("+1 coin each adjacent Residential", GAME_FONT, WHITE, screen, rules_x, legend_y + 240)
+        draw_text("Park:", GAME_FONT, WHITE, screen, rules_x, legend_y + 280)
+        draw_text("1 pt each adjacent Park", GAME_FONT, WHITE, screen, rules_x, legend_y + 300)
+        draw_text("Road:", GAME_FONT, WHITE, screen, rules_x, legend_y + 340)
+        draw_text("1 pt each connected road", GAME_FONT, WHITE, screen, rules_x, legend_y + 360)
+        draw_text("in the same row", GAME_FONT, WHITE, screen, rules_x, legend_y + 380)
 
     while True:
         screen.fill(BACKGROUND_COLOR)
-        draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 20)
+        draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, WHITE, screen, SCREEN_WIDTH // 2, 20)
         
         draw_grid()
         draw_rules()
 
         if demolish_mode:
-            draw_left_aligned_text('Demolish Mode: Click on a building to remove it', GAME_FONT, BLACK, screen, 20, 60)
-            draw_left_aligned_text('Press D to return to building mode', GAME_FONT, BLACK, screen, 20, 80)
+            draw_left_aligned_text('Demolish Mode: Click on a building to remove it', GAME_FONT, WHITE, screen, 20, 60)
+            draw_left_aligned_text('Press D to return to building mode', GAME_FONT, WHITE, screen, 20, 80)
         else:
-            draw_left_aligned_text(f'Choose a building: {BUILDINGS[BUILDINGS.index(buildings[0])]}, {BUILDING_SYMBOLS[buildings[0]]} (1) or {BUILDINGS[BUILDINGS.index(buildings[1])]}, {BUILDING_SYMBOLS[buildings[1]]} (2)', GAME_FONT, BLACK, screen, 20, 60)
-            draw_left_aligned_text('Press D to toggle Demolish Mode', GAME_FONT, BLACK, screen, 20, 80)
-            draw_left_aligned_text('Press M to return to Main Menu', GAME_FONT, BLACK, screen, 20, 100)
+            draw_left_aligned_text(f'Choose a building: {BUILDINGS[BUILDINGS.index(buildings[0])]}, {BUILDING_SYMBOLS[buildings[0]]} (1) or {BUILDINGS[BUILDINGS.index(buildings[1])]}, {BUILDING_SYMBOLS[buildings[1]]} (2)', GAME_FONT, WHITE, screen, 20, 60)
+            draw_left_aligned_text('Press D to toggle Demolish Mode', GAME_FONT, WHITE, screen, 20, 80)
+            draw_left_aligned_text('Press M to return to Main Menu', GAME_FONT, WHITE, screen, 20, 100)
             if selected_building:
-                draw_left_aligned_text(f'Building {selected_building}. Click on grid to place.', GAME_FONT, BLACK, screen, 20, 130)
+                draw_left_aligned_text(f'Building {selected_building}. Click on grid to place.', GAME_FONT, WHITE, screen, 20, 130)
 
         if illegal_placement:
-            draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, BLACK, screen, 20, 160)
+            draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, WHITE, screen, 20, 160)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -772,7 +797,6 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                                         score += 1
                             turn += 1
                             new_score = calculate_points_arcade(grid, restricted_residential)
-                            points_earned = new_score - score
                             score = new_score
                             save_game_arcade(grid, coins, turn, score, restricted_residential)
                             buildings = random.sample(BUILDINGS, 2)
@@ -781,23 +805,9 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                             animation_frame = 30
                             illegal_placement = False
 
-                            if points_earned > 0:
-                                if selected_building == 'R':
-                                    print(f"+{points_earned} Points for Residential")
-                                elif selected_building == 'I':
-                                    print(f"+{points_earned} Points for Industry")
-                                elif selected_building == 'C':
-                                    print(f"+{points_earned} Points for Commercial")
-                                elif selected_building == 'O':
-                                    print(f"+{points_earned} Points for Park")
-                                elif selected_building == '*':
-                                    print(f"+{points_earned} Points for Road")
-                            else:
-                                print(f"No points earned for {selected_building}")
-
         if animation_frame > 0:
             animation_frame -= 1
-            draw_text('+', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2 + 50, 20)
+            draw_text('+', GAME_FONT, WHITE, screen, SCREEN_WIDTH // 2 + 50, 20)
 
         pygame.display.update()
 
@@ -839,50 +849,50 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
         # Draw the rules and legend for Free Play mode
         rules_x = SCREEN_WIDTH - MARGIN_RIGHT + TEXT_MARGIN_RIGHT + 50
         rules_y = MARGIN_TOP
-        draw_text("Legend", BUTTON_FONT, BLACK, screen, rules_x, rules_y)
+        draw_text("Legend", BUTTON_FONT, WHITE, screen, rules_x, rules_y)
         legend_y = rules_y + 40
         for building, symbol in BUILDING_SYMBOLS.items():
-            draw_text(f'{building}: {symbol}', GAME_FONT, BLACK, screen, rules_x, legend_y)
+            draw_text(f'{building}: {symbol}', GAME_FONT, WHITE, screen, rules_x, legend_y)
             legend_y += 20
 
-        draw_text("Points System", BUTTON_FONT, BLACK, screen, rules_x, legend_y + 20)
+        draw_text("Points System", BUTTON_FONT, WHITE, screen, rules_x, legend_y + 20)
         legend_y += 60
-        draw_text("Residential:", GAME_FONT, BLACK, screen, rules_x, legend_y)
-        draw_text("1 pt if adjacent to Industry", GAME_FONT, BLACK, screen, rules_x, legend_y + 20)
-        draw_text("Otherwise:", GAME_FONT, BLACK, screen, rules_x, legend_y + 40)
-        draw_text("+1 pt each adjacent R/C", GAME_FONT, BLACK, screen, rules_x, legend_y + 60)
-        draw_text("+2 pts each adjacent Park", GAME_FONT, BLACK, screen, rules_x, legend_y + 80)
-        draw_text("Industry:", GAME_FONT, BLACK, screen, rules_x, legend_y + 120)
-        draw_text("1 pt each Industry in city", GAME_FONT, BLACK, screen, rules_x, legend_y + 140)
-        draw_text("+1 coin each adjacent R", GAME_FONT, BLACK, screen, rules_x, legend_y + 160)
-        draw_text("Commercial:", GAME_FONT, BLACK, screen, rules_x, legend_y + 200)
-        draw_text("1 pt each adjacent Commercial", GAME_FONT, BLACK, screen, rules_x, legend_y + 220)
-        draw_text("+1 coin each adjacent Residential", GAME_FONT, BLACK, screen, rules_x, legend_y + 240)
-        draw_text("Park:", GAME_FONT, BLACK, screen, rules_x, legend_y + 280)
-        draw_text("1 pt each adjacent Park", GAME_FONT, BLACK, screen, rules_x, legend_y + 300)
-        draw_text("Road:", GAME_FONT, BLACK, screen, rules_x, legend_y + 340)
-        draw_text("1 pt each connected road", GAME_FONT, BLACK, screen, rules_x, legend_y + 360)
-        draw_text("in the same row", GAME_FONT, BLACK, screen, rules_x, legend_y + 380)
+        draw_text("Residential:", GAME_FONT, WHITE, screen, rules_x, legend_y)
+        draw_text("1 pt if adjacent to Industry", GAME_FONT, WHITE, screen, rules_x, legend_y + 20)
+        draw_text("Otherwise:", GAME_FONT, WHITE, screen, rules_x, legend_y + 40)
+        draw_text("+1 pt each adjacent R/C", GAME_FONT, WHITE, screen, rules_x, legend_y + 60)
+        draw_text("+2 pts each adjacent Park", GAME_FONT, WHITE, screen, rules_x, legend_y + 80)
+        draw_text("Industry:", GAME_FONT, WHITE, screen, rules_x, legend_y + 120)
+        draw_text("1 pt each Industry in city", GAME_FONT, WHITE, screen, rules_x, legend_y + 140)
+        draw_text("+1 coin each adjacent R", GAME_FONT, WHITE, screen, rules_x, legend_y + 160)
+        draw_text("Commercial:", GAME_FONT, WHITE, screen, rules_x, legend_y + 200)
+        draw_text("1 pt each adjacent Commercial", GAME_FONT, WHITE, screen, rules_x, legend_y + 220)
+        draw_text("+1 coin each adjacent Residential", GAME_FONT, WHITE, screen, rules_x, legend_y + 240)
+        draw_text("Park:", GAME_FONT, WHITE, screen, rules_x, legend_y + 280)
+        draw_text("1 pt each adjacent Park", GAME_FONT, WHITE, screen, rules_x, legend_y + 300)
+        draw_text("Road:", GAME_FONT, WHITE, screen, rules_x, legend_y + 340)
+        draw_text("1 pt each connected road", GAME_FONT, WHITE, screen, rules_x, legend_y + 360)
+        draw_text("in the same row", GAME_FONT, WHITE, screen, rules_x, legend_y + 380)
 
     while True:
         screen.fill(BACKGROUND_COLOR)
-        draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2, 20)
+        draw_text(f'Turn: {turn}    Coins: {coins}    Score: {score}', GAME_FONT, WHITE, screen, SCREEN_WIDTH // 2, 20)
 
         draw_grid()
         draw_rules()
 
         if demolish_mode:
-            draw_left_aligned_text('Demolish Mode: Click on a building to remove it', GAME_FONT, BLACK, screen, 20, 60)
-            draw_left_aligned_text('Press D to return to building mode', GAME_FONT, BLACK, screen, 20, 80)
+            draw_left_aligned_text('Demolish Mode: Click on a building to remove it', GAME_FONT, WHITE, screen, 20, 60)
+            draw_left_aligned_text('Press D to return to building mode', GAME_FONT, WHITE, screen, 20, 80)
         else:
-            draw_left_aligned_text(f'Choose a building: Residential (R) (1), Industry (I) (2), Commercial (C) (3), Park (O) (4), Road (*) (5)', GAME_FONT, BLACK, screen, 20, 60)
-            draw_left_aligned_text('Press D to toggle Demolish Mode', GAME_FONT, BLACK, screen, 20, 80)
-            draw_left_aligned_text('Press M to return to Main Menu', GAME_FONT, BLACK, screen, 20, 100)
+            draw_left_aligned_text(f'Choose a building: Residential (R) (1), Industry (I) (2), Commercial (C) (3), Park (O) (4), Road (*) (5)', GAME_FONT, WHITE, screen, 20, 60)
+            draw_left_aligned_text('Press D to toggle Demolish Mode', GAME_FONT, WHITE, screen, 20, 80)
+            draw_left_aligned_text('Press M to return to Main Menu', GAME_FONT, WHITE, screen, 20, 100)
             if selected_building:
-                draw_left_aligned_text(f'Building {selected_building}. Click on grid to place.', GAME_FONT, BLACK, screen, 20, 130)
+                draw_left_aligned_text(f'Building {selected_building}. Click on grid to place.', GAME_FONT, WHITE, screen, 20, 130)
 
         if illegal_placement:
-            draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, BLACK, screen, 20, 160)
+            draw_left_aligned_text("Illegal placement. Try again.", GAME_FONT, WHITE, screen, 20, 160)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -960,7 +970,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
 
         if animation_frame > 0:
             animation_frame -= 1
-            draw_text('+', GAME_FONT, BLACK, screen, SCREEN_WIDTH // 2 + 50, 20)
+            draw_text('+', GAME_FONT, WHITE, screen, SCREEN_WIDTH // 2 + 50, 20)
 
         pygame.display.update()
         
@@ -975,10 +985,10 @@ def end_game_screen(score, coins):
     # Display the end-game screen
     while True:
         screen.fill(BACKGROUND_COLOR)
-        draw_text('Game Over!', TITLE_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100)
-        draw_text(f'Total Points: {score}', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        draw_text(f'Total Coins: {coins}', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40)
-        draw_text('Press M to return to Main Menu', BUTTON_FONT, BLACK, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
+        draw_text('Game Over!', TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 100)
+        draw_text(f'Total Points: {score}', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        draw_text(f'Total Coins: {coins}', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40)
+        draw_text('Press M to return to Main Menu', BUTTON_FONT, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 100)
 
         clear_saved_game_free_play()
 
