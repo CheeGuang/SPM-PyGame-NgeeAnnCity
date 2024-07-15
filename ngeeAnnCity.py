@@ -515,7 +515,7 @@ def load_game_free_play():
 
 # Main Menu with buttons
 def main_menu():
-    background_image = load_background_image('./NgeeAnnPoly.jpg')  # Replace 'background.jpg' with your image file path
+    background_image = load_background_image('./Background.png')  # Replace 'background.jpg' with your image file path
 
     while True:
         screen.fill(BLACK)  # Fill the screen with black color
@@ -526,24 +526,61 @@ def main_menu():
 
         play_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
         leaderboard_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
-        exit_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)
+        settings_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 620, button_width, button_height)  # New Settings Button
+        exit_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 705, button_width, button_height)
 
         draw_button_with_hover(play_button, 'Play', BUTTON_FONT, WHITE, GREY, screen)
         draw_button_with_hover(leaderboard_button, 'Leaderboard', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(settings_button, 'Settings', BUTTON_FONT, WHITE, GREY, screen)  # Draw Settings Button
         draw_button_with_hover(exit_button, 'Exit', BUTTON_FONT, WHITE, GREY, screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 if play_button.collidepoint(event.pos):
                     play_menu()
                 elif leaderboard_button.collidepoint(event.pos):
                     display_leaderboard()
+                elif settings_button.collidepoint(event.pos):  # Handle Settings Button Click
+                    settings_menu()
                 elif exit_button.collidepoint(event.pos):
                     pygame.quit()
                     sys.exit()
+
+        pygame.display.update()
+# Settings Menu with buttons
+def settings_menu():
+    background_image = load_background_image('./MenuBackground.png')  # Replace with your image file path
+
+    while True:
+        screen.fill(BLACK)  # Fill the screen with black color
+        draw_background_image(background_image, screen)
+
+        draw_text('Settings', MENU_TITLE_FONT, WHITE, screen, SCREEN_WIDTH // 2, 200)
+
+        button_width = 400
+        button_height = 70
+
+        mute_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 450, button_width, button_height)
+        back_button = pygame.Rect(SCREEN_WIDTH // 2 - button_width // 2, 535, button_width, button_height)
+
+        draw_button_with_hover(mute_button, 'Mute/Unmute Music', BUTTON_FONT, WHITE, GREY, screen)
+        draw_button_with_hover(back_button, 'Back', BUTTON_FONT, WHITE, GREY, screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONUP:
+                if mute_button.collidepoint(event.pos):
+                    if pygame.mixer.music.get_volume() > 0:
+                        pygame.mixer.music.set_volume(0)
+                    else:
+                        pygame.mixer.music.set_volume(0.03)  # Set to your desired volume level
+                elif back_button.collidepoint(event.pos):
+                    return
 
         pygame.display.update()
 
@@ -572,7 +609,7 @@ def play_menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 if arcade_mode_button.collidepoint(event.pos):
                     arcade_menu()
                 elif free_play_button.collidepoint(event.pos):
@@ -607,7 +644,7 @@ def arcade_menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 if load_saved_game_button.collidepoint(event.pos):
                     grid, coins, turn, score, restricted_residential = load_game_arcade()
                     if grid is not None:
@@ -648,7 +685,7 @@ def free_play_menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 if load_saved_game_button.collidepoint(event.pos):
                     grid, coins, turn, score, restricted_residential, expansion_count = load_game_free_play()
                     if grid is not None:
@@ -783,7 +820,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                     elif event.key == pygame.K_2:
                         selected_building = buildings[1]
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 x, y = event.pos
                 col = (x - MARGIN_LEFT) // CELL_SIZE
                 row = (y - MARGIN_TOP) // CELL_SIZE
@@ -947,7 +984,7 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
                     elif event.key == pygame.K_5:
                         selected_building = 'Road'
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONUP:
                 x, y = event.pos
                 col = (x - MARGIN_LEFT) // CELL_SIZE
                 row = (y - MARGIN_TOP) // CELL_SIZE
