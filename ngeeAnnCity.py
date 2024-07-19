@@ -789,8 +789,8 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
             score += points
             coins += coins_gained
         elif operation == 'remove':
-            score -= points
-            coins -= coins_gained
+            # No points or coins change on removal
+            pass
     
     while True:
         screen.fill(BACKGROUND_COLOR)
@@ -841,7 +841,7 @@ def arcade_game(grid=None, coins=None, turn=None, score=None, restricted_residen
                     if demolish_mode and grid[row][col] is not None:
                         update_score_and_coins(row, col, 'remove')
                         grid[row][col] = None
-                        coins -= 1
+                        coins -= 1  # Only decrease coins by 1
                         turn += 1
                         illegal_placement = False
                         demolish_mode = False
@@ -956,8 +956,8 @@ def free_play_game(grid=None, coins=None, turn=None, score=None, restricted_resi
             score += points
             coins += coins_gained
         elif operation == 'remove':
-            score -= points
-            coins -= coins_gained
+            # No points or coins change on removal
+            pass
 
     while True:
         screen.fill(BACKGROUND_COLOR)
